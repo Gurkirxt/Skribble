@@ -20,7 +20,7 @@ const io = new Server(httpServer, {
 });
 
 app.post('/api/rooms', (req, res) => {
-  const config = req.body.config || {
+  const config = req.body?.config || {
     isPublic: true,
     drawTime: 80,
     maxPlayers: 8,

@@ -22,8 +22,8 @@ export function registerSocketHandlers(io: Server): void {
   io.on("connection", (socket) => {
     socket.on(
       "join",
-      (payload: { roomCode: string; uid: string; username: string }) => {
-        const { roomCode, uid, username } = payload ?? {};
+      (payload: { roomCode: string; uid: string; username: string; avatar: Record<string, string[]> }) => {
+        const { roomCode, uid, username, avatar } = payload ?? {};
         const code = roomCode?.toUpperCase?.();
 
         if (!code) {
@@ -77,6 +77,7 @@ export function registerSocketHandlers(io: Server): void {
           uid,
           socketId: socket.id,
           username: username.trim(),
+          avatar: avatar || {},
           hasAnswered: false,
           score: 0,
           connected: true,
@@ -354,6 +355,7 @@ function serialize(p: Player) {
   return {
     uid: p.uid,
     username: p.username,
+    avatar: p.avatar,
     hasAnswered: p.hasAnswered,
     score: p.score,
     connected: p.connected,

@@ -27,6 +27,7 @@ export interface Player {
   uid: string;
   socketId: string;
   username: string;
+  avatar: Record<string, string[]>;
   hasAnswered: boolean;
   score: number;
   connected: boolean;
