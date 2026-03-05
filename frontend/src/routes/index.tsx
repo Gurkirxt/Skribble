@@ -25,7 +25,7 @@ const TRAITS = {
 	clothing: ["blazerAndShirt", "blazerAndSweater", "collarAndSweater", "graphicShirt", "hoodie", "overall", "shirtCrewNeck", "shirtScoopNeck", "shirtVNeck"],
 	clothesColor: ["262e33", "65c9ff", "5199e4", "25557c", "e6e6e6", "929598", "3c4f5c", "b1e2ff", "a7ffc4", "ffafb9", "ffffb1", "ff488e", "ff5c5c", "ffffff"],
 	skinColor: ["614335", "d08b5b", "ae5d29", "edb98a", "ffdbb4", "fd9841", "f8d25c"]
-};
+} as const;
 
 type TraitName = keyof typeof TRAITS;
 
@@ -89,7 +89,7 @@ function MainPage() {
 		if (!validateAndSave()) return;
 		try {
 			setIsLoading(true);
-			const res = await axios.post("http://localhost:8080/api/rooms");
+			const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/rooms`);
 			if (res.data && res.data.code) {
 				navigate({ to: "/game", search: { code: res.data.code } });
 			}
@@ -105,7 +105,7 @@ function MainPage() {
 		if (!validateAndSave()) return;
 		try {
 			setIsLoading(true);
-			const res = await axios.get("http://localhost:8080/api/rooms");
+			const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/rooms`);
 			const rooms = res.data;
 			if (rooms && rooms.length > 0) {
 				const availableRoom = rooms.find((r: any) => r.players < r.maxPlayers);

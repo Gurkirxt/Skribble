@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState} from "react";
+import { v4 as generateUUID } from "uuid";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
 	Pencil,
@@ -226,7 +227,7 @@ function GamePage() {
 	const { code } = Route.useSearch();
 
 	const [socket, setSocket] = useState<Socket | null>(null);
-	const [uid] = useState(() => crypto.randomUUID());
+	const [uid] = useState(() => generateUUID());
 	const [username, setUsername] = useState("");
 	const [avatarConfig, setAvatarConfig] = useState<Record<string, string[]> | null>(null);
 	const [hasJoined, setHasJoined] = useState(false);
@@ -277,7 +278,7 @@ function GamePage() {
 			return;
 		}
 
-		const newSocket = io("http://localhost:8080");
+		const newSocket = io(import.meta.env.VITE_BACKEND_URL);
 		setSocket(newSocket);
 
 		return () => {
@@ -368,11 +369,14 @@ function GamePage() {
 		socket.on("wordChoices", ({ choices }) => {
 			setWordChoices(choices);
 			setGameState("choosing_word");
+			setTimeLeft(15);
 		});
 
 		socket.on("wordChosen", ({ word }) => {
 			setCurrentWord(word);
+			setWordChoices([]);
 			setGameState("playing");
+			setTimeLeft(config?.drawTime ?? 60);
 		});
 
 		socket.on("hint", ({ hint }) => {
@@ -383,7 +387,6 @@ function GamePage() {
 			setDrawerUid(newDrawerUid);
 			setGameState("choosing_word");
 			setCurrentWord(null);
-			setWordChoices([]);
 			if (canvasRef.current) {
 				const ctx = canvasRef.current.getContext("2d");
 				if (ctx) {
@@ -396,6 +399,7 @@ function GamePage() {
 		socket.on("turnEnd", ({ word }) => {
 			setCurrentWord(word);
 			setGameState("round_end");
+			setTimeLeft(0);
 		});
 
 		socket.on("gameOver", () => {
@@ -432,10 +436,16 @@ function GamePage() {
 			socket.off("chat");
 			socket.off("stroke");
 			socket.off("canvasUpdate");
+			socket.off("wordChoices");
+			socket.off("wordChosen");
+			socket.off("hint");
+			socket.off("turnStart");
+			socket.off("turnEnd");
+			socket.off("gameOver");
 			socket.off("playerAnswered");
 			socket.off("error");
 		};
-	}, [socket, players]);
+	}, [socket, players, config]);
 
 	useEffect(() => {
 		if (socket && code && username && avatarConfig && !hasJoined) {
@@ -468,7 +478,7 @@ function GamePage() {
 		
 		if (activeTool === "fill") {
 			const stroke: Stroke = {
-				id: crypto.randomUUID(),
+				id: generateUUID(),
 				penType: "fill",
 				color: activeColor,
 				size: 0,
@@ -487,7 +497,7 @@ function GamePage() {
 		}
 
 		setIsDrawing(true);
-		currentStrokeId.current = crypto.randomUUID();
+		currentStrokeId.current = generateUUID();
 		currentStrokePoints.current = [{ x, y }];
 
 		const ctx = canvasRef.current!.getContext("2d")!;
