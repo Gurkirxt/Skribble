@@ -53,6 +53,7 @@ export function startTurn(io: Server, room: Room) {
   room.drawerUid = drawer.uid;
   room.gameState = "choosing_word";
   room.currentWord = null;
+  room.currentHint = null;
   room.strokes = [];
   room.redoStack = [];
   room.wordChoices = getRandomWords(room.config.wordChoicesCount || 3);
@@ -120,38 +121,43 @@ export function wordChosen(io: Server, room: Room, word: string) {
 function setupHints(io: Server, room: Room, word: string) {
   const hintInterval = (room.config.drawTime * 1000) / word.length;
   const timers: NodeJS.Timeout[] = [];
-  let revealed = Array(word.length).fill("_");
-  
-  // Don't reveal spaces
+  const revealed: string[] = Array(word.length).fill("_");
+
   for (let i = 0; i < word.length; i++) {
     if (word[i] === " ") revealed[i] = " ";
   }
 
-  const unrevealedIndices = word.split('').map((_, i) => i).filter(i => word[i] !== " ");
-  // Shuffle indices
+  // Initialise room hint to the all-blanks state
+  room.currentHint = revealed.join("");
+
+  const unrevealedIndices = word
+    .split("")
+    .map((_, i) => i)
+    .filter((i) => word[i] !== " ");
   unrevealedIndices.sort(() => Math.random() - 0.5);
 
-  // Reveal up to length/2 letters
   const maxHints = Math.floor(word.length / 2);
 
   for (let i = 0; i < maxHints; i++) {
     const timer = setTimeout(() => {
       if (room.gameState !== "playing") return;
-      
+
       const idx = unrevealedIndices[i];
       if (idx === undefined) return;
-      
+
       revealed[idx] = word[idx] as string;
-      
+      // Persist so reconnecting players and late-answerers see the same state
+      room.currentHint = revealed.join("");
+
       for (const player of room.players.values()) {
         if (player.uid !== room.drawerUid && !player.hasAnswered) {
-          io.to(player.socketId).emit("hint", { hint: revealed.join("") });
+          io.to(player.socketId).emit("hint", { hint: room.currentHint });
         }
       }
     }, hintInterval * (i + 1));
     timers.push(timer);
   }
-  
+
   hintTimers.set(room.code, timers);
 }
 
@@ -169,7 +175,10 @@ export function checkTurnEndEarly(io: Server, room: Room) {
 export function endTurn(io: Server, room: Room) {
   clearRoomTimers(room.code);
   room.gameState = "round_end";
-  
+  room.strokes = [];
+  room.redoStack = [];
+  room.currentHint = null;
+
   const scores = Array.from(room.players.values()).map(p => ({
     uid: p.uid,
     score: p.score
@@ -179,6 +188,7 @@ export function endTurn(io: Server, room: Room) {
     word: room.currentWord,
     scores
   });
+  io.to(room.code).emit("canvasUpdate", { strokes: [] });
 
   room.turnIndex++;
 
@@ -196,6 +206,7 @@ export function returnToLobby(io: Server, room: Room) {
   room.turnIndex = 0;
   room.drawerUid = null;
   room.currentWord = null;
+  room.currentHint = null;
   room.strokes = [];
   room.redoStack = [];
   

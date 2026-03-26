@@ -306,6 +306,10 @@ function GamePage() {
 			if (state.strokes && canvasRef.current) {
 				renderStrokes(canvasRef.current.getContext("2d")!, state.strokes);
 			}
+			// Restore word/hint so a reconnecting player sees the current game state
+			if (state.currentHint) {
+				setCurrentWord(state.currentHint);
+			}
 		});
 
 		socket.on("playerJoined", (player: Player) => {

@@ -61,6 +61,7 @@ export function registerSocketHandlers(io: Server): void {
             players: playerList,
             drawerUid: room.drawerUid,
             strokes: room.strokes,
+            currentHint: room.currentHint,
           });
 
           socket.to(code).emit("playerReconnected", { uid, username: existing.username });
@@ -212,22 +213,22 @@ export function registerSocketHandlers(io: Server): void {
       if (!message) return;
 
       const isDrawer = room.drawerUid === player.uid;
-      
+
       // Check for answer
       if (!isDrawer && !player.hasAnswered && room.currentWord && room.gameState === "playing") {
         if (room.currentWord.trim().toLowerCase() === message.toLowerCase()) {
           player.hasAnswered = true;
-          
+
           // Calculate score based on remaining time
           const now = Date.now();
           const remainingTime = Math.max(0, (room.roundEndTime || now) - now);
           const maxTime = room.config.drawTime * 1000;
           const timeRatio = remainingTime / maxTime;
-          
+
           // Base score + time bonus (max 500 points)
           const points = Math.floor(100 + (400 * timeRatio));
           player.score += points;
-          
+
           // Give drawer some points too
           const drawer = room.players.get(room.drawerUid!);
           if (drawer) {
@@ -240,7 +241,7 @@ export function registerSocketHandlers(io: Server): void {
             username: player.username,
             score: player.score
           });
-          
+
           checkTurnEndEarly(io, room);
           return; // Do not broadcast the correct answer as chat
         }
@@ -316,17 +317,17 @@ export function registerSocketHandlers(io: Server): void {
 
       if (correct) {
         player.hasAnswered = true;
-        
+
         // Calculate score based on remaining time
         const now = Date.now();
         const remainingTime = Math.max(0, (room.roundEndTime || now) - now);
         const maxTime = room.config.drawTime * 1000;
         const timeRatio = remainingTime / maxTime;
-        
+
         // Base score + time bonus (max 500 points)
         const points = Math.floor(100 + (400 * timeRatio));
         player.score += points;
-        
+
         // Give drawer some points too
         const drawer = room.players.get(room.drawerUid!);
         if (drawer) {
@@ -339,7 +340,7 @@ export function registerSocketHandlers(io: Server): void {
           username: player.username,
           score: player.score
         });
-        
+
         checkTurnEndEarly(io, room);
       }
     });
@@ -350,10 +351,10 @@ export function registerSocketHandlers(io: Server): void {
       if (roomCode && uid) {
         const room = getRoom(roomCode);
         const oldHost = room?.hostUid;
-        
+
         disconnectPlayer(roomCode, socket.id);
         socket.to(roomCode).emit("playerDisconnected", { uid });
-        
+
         if (room && room.hostUid !== oldHost) {
           io.to(roomCode).emit("hostChanged", { hostUid: room.hostUid });
         }

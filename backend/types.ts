@@ -52,6 +52,7 @@ export interface Room {
   /** uid of the current drawer */
   drawerUid: string | null;
   currentWord: string | null;
+  currentHint: string | null;
   strokes: Stroke[];
   redoStack: Stroke[];
 }

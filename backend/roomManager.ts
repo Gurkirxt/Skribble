@@ -3,6 +3,33 @@ import { clearRoomTimers } from "./gameLogic.js";
 
 const rooms = new Map<string, Room>();
 
+// Grace period (ms) before an empty room is deleted, allowing players to reconnect after a reload
+const ROOM_CLEANUP_DELAY_MS = 30_000;
+const roomCleanupTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleRoomCleanup(roomCode: string): void {
+  cancelRoomCleanup(roomCode);
+  const timer = setTimeout(() => {
+    roomCleanupTimers.delete(roomCode);
+    const room = rooms.get(roomCode);
+    if (!room) return;
+    const anyConnected = Array.from(room.players.values()).some((p) => p.connected);
+    if (!anyConnected) {
+      clearRoomTimers(roomCode);
+      rooms.delete(roomCode);
+    }
+  }, ROOM_CLEANUP_DELAY_MS);
+  roomCleanupTimers.set(roomCode, timer);
+}
+
+function cancelRoomCleanup(roomCode: string): void {
+  const timer = roomCleanupTimers.get(roomCode);
+  if (timer !== undefined) {
+    clearTimeout(timer);
+    roomCleanupTimers.delete(roomCode);
+  }
+}
+
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const DEFAULT_CODE_LENGTH = 6;
 
@@ -37,6 +64,7 @@ export function createRoom(config: RoomConfig): Room {
     socketToUid: new Map(),
     drawerUid: null,
     currentWord: null,
+    currentHint: null,
     strokes: [],
     redoStack: [],
   };
@@ -92,6 +120,7 @@ export function reconnectPlayer(
   const player = room.players.get(uid);
   if (!player) return undefined;
 
+  cancelRoomCleanup(roomCode);
   room.socketToUid.delete(player.socketId);
   player.socketId = newSocketId;
   player.connected = true;
@@ -118,14 +147,10 @@ export function disconnectPlayer(roomCode: string, socketId: string): void {
     player.socketId = "";
   }
 
-  if (room.drawerUid === uid) {
-    room.drawerUid = null;
-  }
-
   const connectedPlayers = Array.from(room.players.values()).filter((p) => p.connected);
   if (connectedPlayers.length === 0) {
-    clearRoomTimers(roomCode);
-    rooms.delete(roomCode);
+    // Delay deletion so a single reloading player can reconnect within the grace period
+    scheduleRoomCleanup(roomCode);
   } else if (room.hostUid === uid) {
     // Reassign host to the oldest connected player
     const oldestPlayer = connectedPlayers.reduce((oldest, p) => 
