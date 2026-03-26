@@ -9,7 +9,7 @@ import {
   setDrawer,
   setCurrentWord,
 } from "./roomManager.js";
-import { startGame, wordChosen, checkTurnEndEarly } from "./gameLogic.js";
+import { startGame, wordChosen, checkTurnEndEarly, returnToLobby } from "./gameLogic.js";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -129,6 +129,17 @@ export function registerSocketHandlers(io: Server): void {
       if (!room || room.hostUid !== uid || room.gameState !== "waiting") return;
 
       startGame(io, room);
+    });
+
+    socket.on("returnToLobby", () => {
+      const roomCode = socket.data.roomCode as string | undefined;
+      const uid = socket.data.uid as string | undefined;
+      if (!roomCode || !uid) return;
+
+      const room = getRoom(roomCode);
+      if (!room || room.hostUid !== uid || room.gameState !== "game_over") return;
+
+      returnToLobby(io, room);
     });
 
     socket.on("chooseWord", (payload: { word: string }) => {

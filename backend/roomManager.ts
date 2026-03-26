@@ -1,4 +1,5 @@
 import type { Room, RoomConfig, Player } from "./types.js";
+import { clearRoomTimers } from "./gameLogic.js";
 
 const rooms = new Map<string, Room>();
 
@@ -123,6 +124,7 @@ export function disconnectPlayer(roomCode: string, socketId: string): void {
 
   const connectedPlayers = Array.from(room.players.values()).filter((p) => p.connected);
   if (connectedPlayers.length === 0) {
+    clearRoomTimers(roomCode);
     rooms.delete(roomCode);
   } else if (room.hostUid === uid) {
     // Reassign host to the oldest connected player

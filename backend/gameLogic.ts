@@ -5,7 +5,7 @@ import { getRandomWords } from "./words.js";
 const roomTimers = new Map<string, NodeJS.Timeout>();
 const hintTimers = new Map<string, NodeJS.Timeout[]>();
 
-function clearRoomTimers(roomCode: string) {
+export function clearRoomTimers(roomCode: string) {
   const timer = roomTimers.get(roomCode);
   if (timer) clearTimeout(timer);
   roomTimers.delete(roomCode);
@@ -189,6 +189,42 @@ export function endTurn(io: Server, room: Room) {
   roomTimers.set(room.code, timer);
 }
 
+export function returnToLobby(io: Server, room: Room) {
+  clearRoomTimers(room.code);
+  room.gameState = "waiting";
+  room.currentRound = 1;
+  room.turnIndex = 0;
+  room.drawerUid = null;
+  room.currentWord = null;
+  room.strokes = [];
+  room.redoStack = [];
+  
+  for (const player of room.players.values()) {
+    player.score = 0;
+    player.hasAnswered = false;
+  }
+
+  const playerList = Array.from(room.players.values()).map(p => ({
+    uid: p.uid,
+    username: p.username,
+    avatar: p.avatar,
+    hasAnswered: p.hasAnswered,
+    score: p.score,
+    connected: p.connected,
+  }));
+
+  io.to(room.code).emit("roomState", {
+    code: room.code,
+    config: room.config,
+    hostUid: room.hostUid,
+    gameState: room.gameState,
+    currentRound: room.currentRound,
+    players: playerList,
+    drawerUid: room.drawerUid,
+    strokes: room.strokes,
+  });
+}
+
 export function endGame(io: Server, room: Room) {
   clearRoomTimers(room.code);
   room.gameState = "game_over";
@@ -198,4 +234,10 @@ export function endGame(io: Server, room: Room) {
     .sort((a, b) => b.score - a.score);
 
   io.to(room.code).emit("gameOver", { scores: finalScores });
+
+  // Return to lobby after 10 seconds
+  const timer = setTimeout(() => {
+    returnToLobby(io, room);
+  }, 10000);
+  roomTimers.set(room.code, timer);
 }

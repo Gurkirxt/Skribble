@@ -227,7 +227,13 @@ function GamePage() {
 	const { code } = Route.useSearch();
 
 	const [socket, setSocket] = useState<Socket | null>(null);
-	const [uid] = useState(() => generateUUID());
+	const [uid] = useState(() => {
+		const stored = localStorage.getItem("skribble_uuid");
+		if (stored) return stored;
+		const newUid = generateUUID();
+		localStorage.setItem("skribble_uuid", newUid);
+		return newUid;
+	});
 	const [username, setUsername] = useState("");
 	const [avatarConfig, setAvatarConfig] = useState<Record<string, string[]> | null>(null);
 	const [hasJoined, setHasJoined] = useState(false);
@@ -688,6 +694,28 @@ function GamePage() {
 								<Button key={w} size="lg" onClick={() => chooseWord(w)}>{w}</Button>
 							))}
 						</div>
+					</div>
+				) : gameState === "game_over" ? (
+					<div className="flex-1 rounded-xl border bg-card overflow-hidden flex flex-col items-center justify-center p-8 gap-6">
+						<h2 className="text-4xl font-bold text-primary mb-4">Game Over!</h2>
+						<div className="w-full max-w-md space-y-4">
+							{players.sort((a, b) => b.score - a.score).map((p, i) => (
+								<div key={p.uid} className="flex items-center justify-between p-4 bg-muted rounded-lg">
+									<div className="flex items-center gap-3">
+										<span className="text-xl font-bold w-6 text-center">
+											{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
+										</span>
+										<span className="font-semibold text-lg">{p.username}</span>
+									</div>
+									<span className="font-bold">{p.score} pts</span>
+								</div>
+							))}
+						</div>
+						{hostUid === uid && (
+							<Button size="lg" className="mt-8 w-full max-w-md" onClick={() => socket?.emit("returnToLobby")}>
+								Next Game
+							</Button>
+						)}
 					</div>
 				) : gameState === "waiting" ? (
 					/* Configuration Screen */
